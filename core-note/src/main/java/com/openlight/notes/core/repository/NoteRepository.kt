@@ -1,0 +1,83 @@
+package com.openlight.notes.core.repository
+
+import com.openlight.notes.core.container.NoteContainer
+import com.openlight.notes.core.db.NoteDao
+import com.openlight.notes.core.db.NoteEntity
+import com.openlight.notes.core.db.NoteFtsDao
+import com.openlight.notes.core.db.NoteFtsEntity
+import com.openlight.notes.core.model.Document
+import com.openlight.notes.core.model.NoteManifest
+import kotlinx.coroutines.flow.Flow
+import java.io.File
+
+/**
+ * Repository: single source of truth for note data.
+ * Room is the index; files are the source of truth (AD-1).
+ */
+class NoteRepository(
+    private val noteDao: NoteDao,
+    private val ftsDao: NoteFtsDao,
+    private val notesDir: File
+) {
+    fun observeNotes(): Flow<List<NoteEntity>> = noteDao.observeAll()
+    fun observeTrashed(): Flow<List<NoteEntity>> = noteDao.observeTrashed()
+    fun observeFolder(folder: String): Flow<List<NoteEntity>> = noteDao.observeByFolder(folder)
+
+    suspend fun getNote(id: String): NoteEntity? = noteDao.getById(id)
+
+    suspend fun createNote(title: String = "Untitled", folder: String = "/"): String {
+        val file = NoteContainer.create(File(notesDir, folder.removeSuffix("/")), title)
+        val manifest = NoteContainer.readManifest(file)
+        val entity = manifest.toEntity(file.absolutePath)
+        noteDao.upsert(entity)
+        ftsDao.upsert(NoteFtsEntity(manifest.id, title, ""))
+        return manifest.id
+    }
+
+    suspend fun saveNote(id: String, manifest: NoteManifest, document: Document) {
+        val entity = noteDao.getById(id) ?: return
+        val file = File(entity.filePath)
+        val updatedManifest = manifest.copy(modified = System.currentTimeMillis())
+        NoteContainer.write(file, updatedManifest, document)
+        noteDao.upsert(updatedManifest.toEntity(file.absolutePath))
+    }
+
+    suspend fun deleteNote(id: String) {
+        val entity = noteDao.getById(id) ?: return
+        File(entity.filePath).delete()
+        noteDao.deleteById(id)
+        ftsDao.deleteById(id)
+    }
+
+    suspend fun search(query: String): List<NoteEntity> {
+        val ids = ftsDao.search("$query*")
+        return ids.mapNotNull { noteDao.getById(it) }
+    }
+
+    suspend fun rebuildIndex() {
+        noteDao.clear()
+        val files = NoteContainer.listNotes(notesDir)
+        for (file in files) {
+            try {
+                val manifest = NoteContainer.readManifest(file)
+                noteDao.upsert(manifest.toEntity(file.absolutePath))
+            } catch (e: Exception) {
+                // Skip corrupt files
+            }
+        }
+    }
+
+    private fun NoteManifest.toEntity(path: String) = NoteEntity(
+        id = id,
+        title = title,
+        folder = folder,
+        created = created,
+        modified = modified,
+        favorite = favorite,
+        trashed = trashed,
+        locked = locked,
+        template = template,
+        device = device,
+        filePath = path
+    )
+}
