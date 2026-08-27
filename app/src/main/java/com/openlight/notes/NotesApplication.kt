@@ -9,6 +9,7 @@ class NotesApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        CrashHandler.install(this)
         container = AppContainer(this)
         Log.i("NotSamNotes", "Application started")
     }
