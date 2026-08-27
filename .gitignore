@@ -1,0 +1,36 @@
+# Android
+*.apk
+*.ap_
+*.dex
+*.class
+bin/
+gen/
+out/
+build/
+proguard/
+
+# Gradle
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.DS_Store
+
+# Keystore
+*.keystore
+*.jks
+*.p12
+
+# Local config
+local.properties
+secrets.properties
+
+# Test coverage
+jacoco.exec
