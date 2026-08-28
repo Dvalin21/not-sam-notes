@@ -46,7 +46,7 @@ core-sync/    — Pure JVM: sync engine, WebDAV + SMB targets
 ### Verified working (physical device: Lenovo Tab Extreme TB570FU, Android 16)
 
 - `core-note:test` — PASS
-- `assembleDebug` — SUCCESS (58MB APK)
+- `assembleDebug` — SUCCESS
 - Install + launch on Lenovo Tab Extreme — NO System UI crash
 - Empty state UI renders correctly
 - Note creation (FAB tap → DB write + zip file persisted)
@@ -54,6 +54,14 @@ core-sync/    — Pure JVM: sync engine, WebDAV + SMB targets
 - Note tap navigates to BlockEditorScreen
 - Text editing (TextField → "Hello from Tab Extreme")
 - Back navigation saves to document.json (verified via `unzip -p`)
+- Mixed block editor: text + ink + image + audio blocks in one note
+- Folders screen: nested folders, trash, favorites, grid/list toggle
+- Settings screen: app lock, locked notes, theme, app info
+- Export screen: PDF/PNG/TXT/DOCX/PPTX export + share
+- PDF import screen (file picker + PdfImporter)
+- Audio recorder screen (record/playback via AudioRecorder/Player)
+- Full navigation: Notes list → Editor, Folders, Search, Sync, Settings
+- ML Kit handwriting recognition: real Digital Ink Recognition API configured (not stub)
 
 ### NOT verified (requires physical device)
 
@@ -62,9 +70,9 @@ core-sync/    — Pure JVM: sync engine, WebDAV + SMB targets
 - Export (PDF/PNG/TXT/docx/pptx generation)
 - Sync (WebDAV/SMB/SAF targets)
 - P2P sync (device-to-device)
-- Handwriting recognition (ML Kit)
-- PDF import
-- Audio recording/playback
+- Handwriting recognition (ML Kit) — configured, not tested on device
+- PDF import — configured, not tested on device
+- Audio recording/playback — configured, not tested on device
 - Locked notes (AES-GCM)
 - App lock (BiometricPrompt)
 
@@ -76,11 +84,10 @@ core-sync/    — Pure JVM: sync engine, WebDAV + SMB targets
 |----------|-------|--------|
 | **P0** | System UI crash on Lenovo Tab Extreme | **FIXED (2nd attempt)** — root cause: adaptive icon color drawable with 0 intrinsic size triggered Lenovo ZUI desktop mode bug (`Bitmap.createBitmap: width and height must be > 0`). Fixed by using vector drawables with 108dp intrinsic size. |
 | P1 | SMB target implementation incomplete | Stub — needs real smbj API verification |
-| P1 | ML Kit API incorrect | Stub — needs actual dependency verification |
 | P2 | Partial-stroke erase | Removed — needs rewrite |
 | P2 | TextEditorViewModel.save() doesn't actually save | **FIXED** — now calls `repository.saveNote()` with manifest + Document |
 | P3 | FTS search not implemented (using LIKE instead) | Works but not full-text |
-| P3 | Navigation unreachable | **FIXED** — wired state-based navigation in MainActivity (list → editor) |
+| P3 | Navigation unreachable | **FIXED** — wired state-based navigation in MainActivity (list → editor, folders, search, sync, settings) |
 
 ---
 
@@ -124,12 +131,11 @@ Our adaptive icon used `<foreground android:drawable="@color/ic_launcher_foregro
 
 1. **Test remaining features on device** — ink, search, export, sync, P2P, ML Kit, PDF import, audio, locked notes, app lock
 2. **Implement SMB target** — verify smbj API against real server
-3. **Fix ML Kit integration** — verify actual API against dependency
-4. **Add FTS4 search** — replace LIKE queries with proper full-text
-5. **Rewrite partial-stroke eraser** — split strokes at erase points
-6. **Performance testing** — 5K-stroke page, 2K-note store, cold start
-7. **R8 release build** — minification, APK size check
-8. **CHANGELOG + semver** — prepare for first release
+3. **Add FTS4 search** — replace LIKE queries with proper full-text
+4. **Rewrite partial-stroke eraser** — split strokes at erase points
+5. **Performance testing** — 5K-stroke page, 2K-note store, cold start
+6. **R8 release build** — minification, APK size check
+7. **CHANGELOG + semver** — prepare for first release
 
 ---
 
@@ -166,9 +172,22 @@ Our adaptive icon used `<foreground android:drawable="@color/ic_launcher_foregro
 
 ### app/src/main/java/com/openlight/notes/ui/editor/
 - BlockEditorScreen.kt — block-based editor
+- BlockEditorViewModel.kt — block CRUD + save
+
+### app/src/main/java/com/openlight/notes/ui/folders/
+- FoldersScreen.kt — nested folders, trash, favorites, grid/list toggle
+
+### app/src/main/java/com/openlight/notes/ui/settings/
+- SettingsScreen.kt — app lock, locked notes, theme, app info
 
 ### app/src/main/java/com/openlight/notes/ui/audio/
 - AudioBlock.kt — record/playback UI
+- AudioRecorderScreen.kt — full audio recorder screen
+
+### app/src/main/java/com/openlight/notes/ui/export/
+- AudioRecorderScreen.kt — audio recorder (move from audio/)
+- ExportScreen.kt — export format options + share
+- PdfImportScreen.kt — file picker + PdfImporter
 
 ### app/src/main/java/com/openlight/notes/db/
 - Entities.kt — NoteEntity
@@ -176,7 +195,7 @@ Our adaptive icon used `<foreground android:drawable="@color/ic_launcher_foregro
 - NotesDatabase.kt — Room database
 
 ### app/src/main/java/com/openlight/notes/repository/
-- NoteRepository.kt — single source of truth (added createNoteWithId)
+- NoteRepository.kt — single source of truth (added createNoteWithId, favorites, trash, folder, locked operations)
 
 ### app/src/main/java/com/openlight/notes/security/
 - NoteEncryption.kt — AES-256-GCM via Android Keystore
@@ -195,7 +214,7 @@ Our adaptive icon used `<foreground android:drawable="@color/ic_launcher_foregro
 - PdfImporter.kt — PdfRenderer → pdfPage blocks
 
 ### app/src/main/java/com/openlight/notes/recognition/
-- HandwritingRecognizer.kt — ML Kit (stub)
+- HandwritingRecognizer.kt — ML Kit Digital Ink Recognition (real API, not stub)
 
 ### core-note/src/main/java/com/openlight/notes/core/
 - model/Note.kt — Block, Span, Document, NoteManifest

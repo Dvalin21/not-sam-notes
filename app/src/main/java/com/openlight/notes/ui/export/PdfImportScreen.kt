@@ -1,214 +1,139 @@
 package com.openlight.notes.ui.export
 
-import android.content.Context
-import android.net.Uri
-import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.FileOpen
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.openlight.notes.AppContainer
-import com.openlight.notes.core.model.Block
 import com.openlight.notes.pdf.PdfImporter
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
 
-/**
- * PDF import screen (Phase 9): file picker → PdfImporter.
- */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PdfImportScreen(
     container: AppContainer,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val mediaDir = remember { File(context.filesDir, "pdf_import_media").also { it.mkdirs() } }
 
-    var selectedUri by remember { mutableStateOf<Uri?>(null) }
-    var selectedFileName by remember { mutableStateOf<String?>(null) }
+    var pdfUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var importing by remember { mutableStateOf(false) }
-    var importResult by remember { mutableStateOf<List<Block.PdfPage>?>(null) }
+    var pageCount by remember { mutableStateOf(0) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    val filePickerLauncher = rememberLauncherForActivityResult(
+    val picker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        uri?.let {
-            selectedUri = it
-            selectedFileName = getFileName(context, it) ?: "selected.pdf"
-            importResult = null
-            errorMessage = null
-        }
+    ) { uri ->
+        uri?.let { pdfUri = it }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Import PDF") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Import PDF",
+            style = MaterialTheme.typography.headlineMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+            onClick = {
+                picker.launch(arrayOf("application/pdf"))
+            },
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Button(
-                onClick = {
-                    filePickerLauncher.launch(arrayOf("application/pdf"))
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.FileOpen, contentDescription = null)
-                Text(
-                    text = "Select PDF File",
-                    maxLines = 1,
-                    overflow = TextOverflow.Clip,
-                    modifier = Modifier.padding(start = 8.dp)
-                )
-            }
+            Icon(Icons.Default.Add, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Pick PDF to import", maxLines = 1)
+        }
 
-            selectedFileName?.let { name ->
-                Text(
-                    text = "Selected: $name",
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 16.dp)
-                )
-            }
-
-            Button(
-                onClick = {
-                    scope.launch {
-                        importing = true
-                        errorMessage = null
-                        try {
-                            withContext(Dispatchers.IO) {
-                                selectedUri?.let { uri ->
-                                    val mediaDir = File(container.notesDir, "pdf_imports").apply { mkdirs() }
-                                    importResult = PdfImporter.importPdf(context, uri, mediaDir)
-                                }
-                            }
-                        } catch (e: Exception) {
-                            errorMessage = e.message ?: "Import failed"
-                        } finally {
-                            importing = false
-                        }
-                    }
-                },
-                enabled = selectedUri != null && !importing,
+        pdfUri?.let { uri ->
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 16.dp)
             ) {
-                Text(
-                    text = if (importing) "Importing..." else "Import PDF",
-                    maxLines = 1,
-                    overflow = TextOverflow.Clip
-                )
-            }
-
-            if (importing) {
-                LinearProgressIndicator(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp)
-                )
-            }
-
-            importResult?.let { blocks ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp)
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Selected: ${uri.lastPathSegment ?: uri.toString()}",
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Button(
+                        onClick = {
+                            if (importing) return@Button
+                            importing = true
+                            errorMessage = null
+                            try {
+                                val blocks = PdfImporter.importPdf(context, uri, mediaDir)
+                                pageCount = blocks.size
+                                importing = false
+                            } catch (e: Exception) {
+                                errorMessage = e.message ?: "Import failed"
+                                importing = false
+                            }
+                        },
+                        enabled = !importing
+                    ) {
+                        if (importing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Importing...", maxLines = 1)
+                        } else {
+                            Icon(Icons.Default.FileDownload, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Import PDF", maxLines = 1)
+                        }
+                    }
+
+                    errorMessage?.let { err ->
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Import Successful",
+                            text = err,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.fillMaxWidth(),
+                            maxLines = 2
+                        )
+                    }
+
+                    if (pageCount > 0) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "Imported $pageCount page${if (pageCount != 1) "s" else ""}",
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            text = "${blocks.size} page(s) imported",
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-                }
-            }
-
-            errorMessage?.let { error ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "Import Failed",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        Text(
-                            text = error,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(top = 4.dp)
+                            "Saved to ${mediaDir.path}",
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
             }
         }
-    }
-}
-
-private fun getFileName(context: Context, uri: Uri): String? {
-    return try {
-        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (cursor.moveToFirst() && nameIndex >= 0) {
-                cursor.getString(nameIndex)
-            } else {
-                null
-            }
-        }
-    } catch (e: Exception) {
-        uri.lastPathSegment
     }
 }

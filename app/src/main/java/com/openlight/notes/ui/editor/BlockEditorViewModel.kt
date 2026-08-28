@@ -61,7 +61,10 @@ class BlockEditorViewModel(
                             text = block.text,
                             textFieldValue = TextFieldValue(block.text)
                         )
-                        is Block.Ink -> BlockItem(id = block.id, block = block)
+                        is Block.Ink -> {
+                            val strokes = com.openlight.notes.core.container.NoteContainer.readStrokes(file, block.id)
+                            BlockItem(id = block.id, block = block, strokes = strokes)
+                        }
                         is Block.Image -> BlockItem(id = block.id, block = block)
                         is Block.Audio -> BlockItem(id = block.id, block = block)
                         is Block.PdfPage -> BlockItem(id = block.id, block = block)
@@ -182,6 +185,14 @@ class BlockEditorViewModel(
             val blocks = s.blocks.map { it.block }
             val document = Document(blocks = blocks)
             repository.saveNote(noteId, manifest, document)
+            
+            // Save ink strokes separately
+            s.blocks.forEach { item ->
+                if (item.block is Block.Ink && item.strokes.isNotEmpty()) {
+                    com.openlight.notes.core.container.NoteContainer.writeStrokes(file, item.id, item.strokes)
+                }
+            }
+            
             _state.value = _state.value.copy(isSaved = true)
         }
     }

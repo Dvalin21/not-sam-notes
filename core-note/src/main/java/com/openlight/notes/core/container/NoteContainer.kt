@@ -2,6 +2,7 @@ package com.openlight.notes.core.container
 
 import com.openlight.notes.core.model.Document
 import com.openlight.notes.core.model.NoteManifest
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.util.UUID
@@ -51,6 +52,40 @@ object NoteContainer {
         }
     }
 
+    fun writeStrokes(file: File, blockId: String, strokes: List<com.openlight.notes.core.ink.Stroke>) {
+        val existingEntries = mutableMapOf<String, ByteArray>()
+        
+        if (file.exists()) {
+            ZipFile(file).use { zip ->
+                zip.entries().asIterator().forEach { entry ->
+                    if (!entry.isDirectory) {
+                        existingEntries[entry.name] = zip.getInputStream(entry).readBytes()
+                    }
+                }
+            }
+        }
+        
+        val tmp = File(file.parentFile, "${file.name}.tmp")
+        ZipOutputStream(tmp.outputStream().buffered()).use { zos ->
+            // Write all existing entries (manifest, document, all strokes)
+            existingEntries.forEach { (name, bytes) ->
+                zos.putNextEntry(ZipEntry(name))
+                zos.write(bytes)
+                zos.closeEntry()
+            }
+            
+            // Overwrite/add the current block's strokes
+            zos.putNextEntry(ZipEntry("strokes/$blockId.json"))
+            zos.write(json.encodeToString(ListSerializer(com.openlight.notes.core.ink.Stroke.serializer()), strokes).toByteArray())
+            zos.closeEntry()
+        }
+        tmp.setReadable(true, false)
+        if (!tmp.renameTo(file)) {
+            tmp.delete()
+            throw IllegalStateException("Failed to rename ${tmp.name} to ${file.name}")
+        }
+    }
+
     fun readManifest(file: File): NoteManifest {
         ZipFile(file).use { zip ->
             val entry = zip.getEntry("manifest.json") ?: throw IllegalStateException("No manifest")
@@ -62,6 +97,14 @@ object NoteContainer {
         ZipFile(file).use { zip ->
             val entry = zip.getEntry("document.json") ?: return Document()
             return json.decodeFromString(Document.serializer(), zip.getInputStream(entry).bufferedReader().readText())
+        }
+    }
+
+    fun readStrokes(file: File, blockId: String): List<com.openlight.notes.core.ink.Stroke> {
+        if (!file.exists()) return emptyList()
+        ZipFile(file).use { zip ->
+            val entry = zip.getEntry("strokes/$blockId.json") ?: return emptyList()
+            return json.decodeFromString(ListSerializer(com.openlight.notes.core.ink.Stroke.serializer()), zip.getInputStream(entry).bufferedReader().readText())
         }
     }
 
