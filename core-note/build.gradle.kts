@@ -24,3 +24,7 @@ dependencies {
     testImplementation(libs.mockito.kotlin)
     testImplementation(libs.turbine)
 }
+
+tasks.named<Test>("test") {
+    useJUnitPlatform()
+}
