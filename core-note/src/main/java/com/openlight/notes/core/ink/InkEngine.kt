@@ -20,25 +20,19 @@ data class Stroke(
     val points: List<FloatArray> = emptyList() // [x, y, tMs, pressure, tiltX, tiltY]
 )
 
-/** Stroke data for one ink block (AD-5). */
-@Serializable
-data class StrokeData(
-    val strokes: List<Stroke> = emptyList()
-)
-
 /** Undoable command (AD-2, Phase 7 reuse). */
 sealed class InkCommand {
     abstract fun apply()
     abstract fun undo()
 
-    class AddStroke(val stroke: Stroke, val blockId: String, val data: StrokeData) : InkCommand() {
-        override fun apply() { data.strokes.add(stroke) }
-        override fun undo() { data.strokes.remove(stroke) }
+    class AddStroke(val stroke: Stroke, val blockId: String, val data: MutableList<Stroke>) : InkCommand() {
+        override fun apply() { data.add(stroke) }
+        override fun undo() { data.remove(stroke) }
     }
 
-    class RemoveStroke(val stroke: Stroke, val blockId: String, val data: StrokeData) : InkCommand() {
-        override fun apply() { data.strokes.remove(stroke) }
-        override fun undo() { data.strokes.add(stroke) }
+    class RemoveStroke(val stroke: Stroke, val blockId: String, val data: MutableList<Stroke>) : InkCommand() {
+        override fun apply() { data.remove(stroke) }
+        override fun undo() { data.add(stroke) }
     }
 
     class TransformStrokes(val strokes: List<Stroke>, val dx: Float, val dy: Float) : InkCommand() {

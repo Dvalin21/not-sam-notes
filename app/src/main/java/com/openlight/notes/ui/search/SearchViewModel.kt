@@ -3,7 +3,7 @@ package com.openlight.notes.ui.search
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.openlight.notes.core.repository.NoteRepository
+import com.openlight.notes.repository.NoteRepository
 import com.openlight.notes.core.search.SearchEngine
 import com.openlight.notes.core.search.SearchResult
 import com.openlight.notes.core.search.MatchType
@@ -35,19 +35,14 @@ class SearchViewModel(
         viewModelScope.launch {
             _state.value = _state.value.copy(isSearching = true, query = query)
 
-            val allNotes = repository.getAll()
-            val results = mutableListOf<SearchResult>()
-
-            for (note in allNotes) {
-                if (note.title.contains(query, ignoreCase = true)) {
-                    results.add(
-                        SearchResult(
-                            note = note,
-                            snippet = searchEngine.makeSnippet(note.title, query),
-                            matchType = MatchType.TITLE
-                        )
-                    )
-                }
+            val allNotes = repository.search(query)
+            val results = allNotes.map { note ->
+                SearchResult(
+                    noteId = note.id,
+                    noteTitle = note.title,
+                    snippet = searchEngine.makeSnippet(note.title, query),
+                    matchType = MatchType.TITLE
+                )
             }
 
             _state.value = _state.value.copy(

@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.openlight.notes.AppContainer
 import com.openlight.notes.core.search.SearchResult
+import com.openlight.notes.core.search.MatchType
 
 /**
  * Search screen: full-text search over typed text + handwriting recognition.
@@ -42,7 +43,7 @@ fun SearchScreen(
     val viewModel: SearchViewModel = viewModel(
         factory = SearchViewModelFactory(container.repository)
     )
-    val results by viewModel.results.collectAsState()
+    val state by viewModel.state.collectAsState()
 
     Scaffold(
         topBar = {
@@ -81,15 +82,15 @@ fun SearchScreen(
             )
 
             LazyColumn {
-                items(results) { result ->
+                items(state.results) { result ->
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onNoteClick(result.note.id) }
+                            .clickable { onNoteClick(result.noteId) }
                             .padding(16.dp)
                     ) {
                         Text(
-                            text = result.note.title.ifEmpty { "Untitled" },
+                            text = result.noteTitle.ifEmpty { "Untitled" },
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
@@ -101,6 +102,7 @@ fun SearchScreen(
                                 MatchType.TITLE -> "Title"
                                 MatchType.TEXT -> "Text"
                                 MatchType.HANDWRITING -> "Handwriting"
+                                else -> "Other"
                             },
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary

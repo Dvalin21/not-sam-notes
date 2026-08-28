@@ -1,4 +1,4 @@
-package com.openlight.notes.core.sync.peer
+package com.openlight.notes.sync.peer
 
 import android.content.Context
 import android.net.nsd.NsdManager
@@ -35,7 +35,7 @@ class PeerSyncServer(
 
     private var actualPort: Int = port
 
-    var onList: (suspend () -> List<String>)? = null
+    var onList: (() -> List<String>)? = null
     var onGet: ((String) -> ByteArray?)? = null
     var onPut: ((String, ByteArray) -> Unit)? = null
     var onDelete: ((String) -> Unit)? = null
@@ -46,12 +46,12 @@ class PeerSyncServer(
 
         return when {
             uri == "/list" && method == Method.GET -> {
-                val notes = onList?.invoke() ?: emptyList()
+                val notes = onList?.let { it() } ?: emptyList()
                 newFixedLengthResponse(Response.Status.OK, "application/json", notes.toString())
             }
             uri.startsWith("/note/") && method == Method.GET -> {
                 val id = uri.removePrefix("/note/")
-                val bytes = onGet?.invoke(id)
+                val bytes = onGet?.let { it(id) }
                 if (bytes != null) {
                     newFixedLengthResponse(Response.Status.OK, "application/octet-stream", bytes.inputStream(), bytes.size.toLong())
                 } else {

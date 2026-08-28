@@ -42,7 +42,7 @@ fun InkEditorScreen(
             strokes = state.strokes,
             currentBrush = state.currentBrush,
             onStrokeFinished = viewModel::addStroke,
-            onErase = viewModel::eraseAt,
+            onErase = { offset -> viewModel.eraseAt(offset.x, offset.y) },
             isEraser = state.isEraser,
             modifier = Modifier.fillMaxSize()
         )

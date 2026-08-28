@@ -1,11 +1,11 @@
-package com.openlight.notes.core.sync.targets
+package com.openlight.notes.sync.targets
 
 import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
-import com.openlight.notes.core.sync.RemoteNote
-import com.openlight.notes.core.sync.SyncTarget
-import com.openlight.notes.core.sync.TargetType
+import com.openlight.notes.sync.RemoteNote
+import com.openlight.notes.sync.SyncTarget
+import com.openlight.notes.sync.TargetType
 import java.io.File
 
 /**

@@ -3,8 +3,8 @@ package com.openlight.notes.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.openlight.notes.core.db.NoteEntity
-import com.openlight.notes.core.repository.NoteRepository
+import com.openlight.notes.db.NoteEntity
+import com.openlight.notes.repository.NoteRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn

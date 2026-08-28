@@ -1,4 +1,4 @@
-package com.openlight.notes.core.db
+package com.openlight.notes.db
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -16,11 +16,4 @@ data class NoteEntity(
     val template: String,
     val device: String,
     val filePath: String
-)
-
-@Entity(tableName = "note_fts")
-data class NoteFtsEntity(
-    @PrimaryKey val id: String,
-    val title: String,
-    val content: String
 )

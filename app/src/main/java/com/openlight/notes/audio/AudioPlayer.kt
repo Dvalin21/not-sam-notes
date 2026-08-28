@@ -1,4 +1,4 @@
-package com.openlight.notes.core.audio
+package com.openlight.notes.audio
 
 import android.content.Context
 import android.media.MediaRecorder

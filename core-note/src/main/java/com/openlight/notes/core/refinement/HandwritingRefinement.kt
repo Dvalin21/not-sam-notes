@@ -34,7 +34,7 @@ object HandwritingRefinement {
     fun tidy(strokes: List<Stroke>, epsilon: Float = 2f): List<Stroke> {
         return strokes.map { stroke ->
             val simplified = rdpSimplify(stroke.points, epsilon)
-            val smoothed = catmullRom(simplify, 3)
+            val smoothed = catmullRom(simplified, 3)
             stroke.copy(points = smoothed)
         }
     }

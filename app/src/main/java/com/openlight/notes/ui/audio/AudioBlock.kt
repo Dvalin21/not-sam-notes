@@ -23,8 +23,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.openlight.notes.core.audio.AudioPlayer
-import com.openlight.notes.core.audio.AudioRecorder
+import com.openlight.notes.audio.AudioPlayer
+import com.openlight.notes.audio.AudioRecorder
 import java.io.File
 
 /**

@@ -3,9 +3,9 @@ package com.openlight.notes.ui.sync
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.openlight.notes.core.repository.NoteRepository
-import com.openlight.notes.core.sync.SyncResult
-import com.openlight.notes.core.sync.SyncTarget
+import com.openlight.notes.repository.NoteRepository
+import com.openlight.notes.sync.SyncResult
+import com.openlight.notes.sync.SyncTarget
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

@@ -1,4 +1,4 @@
-package com.openlight.notes.core.security
+package com.openlight.notes.security
 
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties

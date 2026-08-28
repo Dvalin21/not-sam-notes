@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.openlight.notes.core.ink.Brush
 import com.openlight.notes.core.ink.Stroke
-import com.openlight.notes.core.repository.NoteRepository
+import com.openlight.notes.repository.NoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

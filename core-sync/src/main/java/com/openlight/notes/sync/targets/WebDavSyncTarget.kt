@@ -1,8 +1,8 @@
-package com.openlight.notes.core.sync.targets
+package com.openlight.notes.sync.targets
 
-import com.openlight.notes.core.sync.RemoteNote
-import com.openlight.notes.core.sync.SyncTarget
-import com.openlight.notes.core.sync.TargetType
+import com.openlight.notes.sync.RemoteNote
+import com.openlight.notes.sync.SyncTarget
+import com.openlight.notes.sync.TargetType
 import okhttp3.Credentials
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient

@@ -1,10 +1,9 @@
 package com.openlight.notes.core.search
 
-import com.openlight.notes.core.db.NoteEntity
-
 /** Search result with snippet. */
 data class SearchResult(
-    val note: NoteEntity,
+    val noteId: String,
+    val noteTitle: String,
     val snippet: String,
     val matchType: MatchType
 )
@@ -15,7 +14,7 @@ enum class MatchType { TITLE, TEXT, HANDWRITING }
 class SearchEngine {
     fun buildQuery(raw: String): String {
         // FTS5 prefix query: each term followed by *
-        return raw.trim().split("\\s+".toFilter()).joinToString(" ") { "$it*" }
+        return raw.trim().split("\\s+".toRegex()).joinToString(" ") { "$it*" }
     }
 
     fun makeSnippet(content: String, query: String, maxLen: Int = 120): String {

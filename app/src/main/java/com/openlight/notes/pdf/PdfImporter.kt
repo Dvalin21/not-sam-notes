@@ -1,4 +1,4 @@
-package com.openlight.notes.core.pdf
+package com.openlight.notes.pdf
 
 import android.content.Context
 import android.graphics.Bitmap

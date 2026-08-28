@@ -1,4 +1,4 @@
-package com.openlight.notes.core.db
+package com.openlight.notes.db
 
 import androidx.room.Dao
 import androidx.room.Insert
@@ -34,16 +34,7 @@ interface NoteDao {
 
     @Query("DELETE FROM notes")
     suspend fun clear()
-}
 
-@Dao
-interface NoteFtsDao {
-    @Query("SELECT id FROM note_fts WHERE note_fts MATCH :query")
-    suspend fun search(query: String): List<String>
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsert(note: NoteFtsEntity)
-
-    @Query("DELETE FROM note_fts WHERE id = :id")
-    suspend fun deleteById(id: String)
+    @Query("SELECT * FROM notes WHERE title LIKE '%' || :query || '%' OR folder LIKE '%' || :query || '%'")
+    suspend fun search(query: String): List<NoteEntity>
 }

@@ -27,7 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.openlight.notes.AppContainer
-import com.openlight.notes.core.sync.SyncResult
+import com.openlight.notes.sync.SyncResult
 
 /**
  * Sync status screen: per-target status, manual sync, error display.
@@ -92,7 +92,7 @@ fun SyncScreen(
                         }
 
                         Text(
-                            text = target.type.name,
+                            text = target.type,
                             style = MaterialTheme.typography.bodySmall
                         )
 

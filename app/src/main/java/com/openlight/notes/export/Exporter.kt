@@ -1,4 +1,4 @@
-package com.openlight.notes.core.export
+package com.openlight.notes.export
 
 import android.content.Context
 import android.graphics.Bitmap

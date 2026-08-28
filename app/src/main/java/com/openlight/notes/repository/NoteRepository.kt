@@ -1,10 +1,8 @@
-package com.openlight.notes.core.repository
+package com.openlight.notes.repository
 
 import com.openlight.notes.core.container.NoteContainer
-import com.openlight.notes.core.db.NoteDao
-import com.openlight.notes.core.db.NoteEntity
-import com.openlight.notes.core.db.NoteFtsDao
-import com.openlight.notes.core.db.NoteFtsEntity
+import com.openlight.notes.db.NoteDao
+import com.openlight.notes.db.NoteEntity
 import com.openlight.notes.core.model.Document
 import com.openlight.notes.core.model.NoteManifest
 import kotlinx.coroutines.flow.Flow
@@ -16,7 +14,6 @@ import java.io.File
  */
 class NoteRepository(
     private val noteDao: NoteDao,
-    private val ftsDao: NoteFtsDao,
     private val notesDir: File
 ) {
     fun observeNotes(): Flow<List<NoteEntity>> = noteDao.observeAll()
@@ -30,7 +27,6 @@ class NoteRepository(
         val manifest = NoteContainer.readManifest(file)
         val entity = manifest.toEntity(file.absolutePath)
         noteDao.upsert(entity)
-        ftsDao.upsert(NoteFtsEntity(manifest.id, title, ""))
         return manifest.id
     }
 
@@ -46,12 +42,10 @@ class NoteRepository(
         val entity = noteDao.getById(id) ?: return
         File(entity.filePath).delete()
         noteDao.deleteById(id)
-        ftsDao.deleteById(id)
     }
 
     suspend fun search(query: String): List<NoteEntity> {
-        val ids = ftsDao.search("$query*")
-        return ids.mapNotNull { noteDao.getById(it) }
+        return noteDao.search(query)
     }
 
     suspend fun rebuildIndex() {
@@ -66,18 +60,18 @@ class NoteRepository(
             }
         }
     }
-
-    private fun NoteManifest.toEntity(path: String) = NoteEntity(
-        id = id,
-        title = title,
-        folder = folder,
-        created = created,
-        modified = modified,
-        favorite = favorite,
-        trashed = trashed,
-        locked = locked,
-        template = template,
-        device = device,
-        filePath = path
-    )
 }
+
+private fun NoteManifest.toEntity(path: String) = NoteEntity(
+    id = id,
+    title = title,
+    folder = folder,
+    created = created,
+    modified = modified,
+    favorite = favorite,
+    trashed = trashed,
+    locked = locked,
+    template = template,
+    device = device,
+    filePath = path
+)

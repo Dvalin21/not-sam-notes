@@ -1,9 +1,8 @@
 package com.openlight.notes
 
 import android.content.Context
-import android.os.Environment
-import com.openlight.notes.core.db.NotesDatabase
-import com.openlight.notes.core.repository.NoteRepository
+import com.openlight.notes.db.NotesDatabase
+import com.openlight.notes.repository.NoteRepository
 import java.io.File
 
 /**
@@ -14,7 +13,6 @@ class AppContainer(context: Context) {
     val notesDir: File = File(context.filesDir, "notes").also { it.mkdirs() }
     val repository = NoteRepository(
         noteDao = database.noteDao(),
-        ftsDao = database.noteFtsDao(),
         notesDir = notesDir
     )
 }

@@ -1,4 +1,4 @@
-package com.openlight.notes.core.sync
+package com.openlight.notes.sync
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
