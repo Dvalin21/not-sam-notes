@@ -210,6 +210,7 @@ private fun BlockCard(
                         }
                     }
                     var template by remember { mutableStateOf("blank") }
+                    val selectedStrokes = remember(blockItem.id) { mutableStateListOf<String>() }
                     Column(modifier = Modifier.fillMaxWidth()) {
                         // Template selector
                         Row(
@@ -226,7 +227,7 @@ private fun BlockCard(
                                 )
                             }
                         }
-                        // Refinement toolbar
+                        // Refinement + selection toolbar
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -254,6 +255,21 @@ private fun BlockCard(
                                 enabled = strokes.isNotEmpty()
                             ) {
                                 Text("Tidy", maxLines = 1)
+                            }
+                            Button(
+                                onClick = {
+                                    // Delete selected strokes
+                                    if (selectedStrokes.isNotEmpty()) {
+                                        strokes.removeAll { stroke ->
+                                            selectedStrokes.contains(stroke.brush.type + "_" + stroke.points.hashCode().toString())
+                                        }
+                                        selectedStrokes.clear()
+                                        onStrokesChange(strokes.toList())
+                                    }
+                                },
+                                enabled = selectedStrokes.isNotEmpty()
+                            ) {
+                                Text("Del Selected", maxLines = 1)
                             }
                         }
                         InkCanvas(
