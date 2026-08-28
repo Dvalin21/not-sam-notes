@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,6 +39,7 @@ import com.openlight.notes.core.search.MatchType
 @Composable
 fun SearchScreen(
     container: AppContainer,
+    onBack: () -> Unit,
     onNoteClick: (String) -> Unit
 ) {
     val viewModel: SearchViewModel = viewModel(
@@ -47,7 +49,14 @@ fun SearchScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Search") })
+            TopAppBar(
+                title = { Text("Search", maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
         }
     ) { padding ->
         Column(

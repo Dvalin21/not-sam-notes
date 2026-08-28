@@ -64,6 +64,43 @@ class NoteRepository(
         return noteDao.search(query)
     }
 
+    suspend fun setFavorite(id: String, favorite: Boolean) {
+        noteDao.setFavorite(id, favorite)
+    }
+
+    suspend fun setTrashed(id: String, trashed: Boolean) {
+        noteDao.setTrashed(id, trashed)
+    }
+
+    suspend fun setFolder(id: String, folder: String) {
+        noteDao.setFolder(id, folder)
+    }
+
+    suspend fun setLocked(id: String, locked: Boolean) {
+        noteDao.setLocked(id, locked)
+    }
+
+    fun observeFavorites(): Flow<List<NoteEntity>> = noteDao.observeFavorites()
+
+    suspend fun toggleFavorite(id: String) {
+        val entity = noteDao.getById(id) ?: return
+        noteDao.setFavorite(id, !entity.favorite)
+    }
+
+    suspend fun trashNote(id: String) {
+        noteDao.setTrashed(id, true)
+    }
+
+    suspend fun restoreNote(id: String) {
+        noteDao.setTrashed(id, false)
+    }
+
+    suspend fun deletePermanently(id: String) {
+        val entity = noteDao.getById(id) ?: return
+        File(entity.filePath).delete()
+        noteDao.deleteById(id)
+    }
+
     suspend fun rebuildIndex() {
         noteDao.clear()
         val files = NoteContainer.listNotes(notesDir)

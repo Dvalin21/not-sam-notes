@@ -5,6 +5,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.openlight.notes.core.ink.Brush
 import com.openlight.notes.core.ink.Stroke
+import com.openlight.notes.core.model.Block
+import com.openlight.notes.core.model.Document
+import com.openlight.notes.core.model.NoteManifest
 import com.openlight.notes.repository.NoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -106,7 +109,10 @@ class InkViewModel(
 
     fun save() {
         viewModelScope.launch {
-            // TODO: serialize strokes to note
+            val s = _state.value
+            val manifest = NoteManifest(id = noteId, title = "", folder = "/")
+            val doc = Document(blocks = listOf(Block.Ink(id = noteId, height = 900f)))
+            repository.saveNote(noteId, manifest, doc)
         }
     }
 }

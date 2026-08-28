@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Refresh
@@ -35,7 +36,8 @@ import com.openlight.notes.sync.SyncResult
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SyncScreen(
-    container: AppContainer
+    container: AppContainer,
+    onBack: () -> Unit
 ) {
     val viewModel: SyncViewModel = viewModel(
         factory = SyncViewModelFactory(container.repository)
@@ -45,7 +47,12 @@ fun SyncScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Sync & Backup") },
+                title = { Text("Sync & Backup", maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
                 actions = {
                     IconButton(onClick = { viewModel.syncAll() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Sync all")

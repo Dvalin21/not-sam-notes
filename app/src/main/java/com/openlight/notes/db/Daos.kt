@@ -35,6 +35,21 @@ interface NoteDao {
     @Query("DELETE FROM notes")
     suspend fun clear()
 
-    @Query("SELECT * FROM notes WHERE title LIKE '%' || :query || '%' OR folder LIKE '%' || :query || '%'")
+    @Query("SELECT * FROM notes WHERE trashed = 0 AND (title LIKE '%' || :query || '%' OR folder LIKE '%' || :query || '%')")
     suspend fun search(query: String): List<NoteEntity>
+
+    @Query("SELECT * FROM notes WHERE trashed = 0 AND favorite = 1 ORDER BY modified DESC")
+    fun observeFavorites(): Flow<List<NoteEntity>>
+
+    @Query("UPDATE notes SET favorite = :favorite WHERE id = :id")
+    suspend fun setFavorite(id: String, favorite: Boolean)
+
+    @Query("UPDATE notes SET trashed = :trashed WHERE id = :id")
+    suspend fun setTrashed(id: String, trashed: Boolean)
+
+    @Query("UPDATE notes SET folder = :folder WHERE id = :id")
+    suspend fun setFolder(id: String, folder: String)
+
+    @Query("UPDATE notes SET locked = :locked WHERE id = :id")
+    suspend fun setLocked(id: String, locked: Boolean)
 }
