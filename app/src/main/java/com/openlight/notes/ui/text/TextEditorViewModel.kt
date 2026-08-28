@@ -3,6 +3,9 @@ package com.openlight.notes.ui.text
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.openlight.notes.core.model.Block
+import com.openlight.notes.core.model.Document
+import com.openlight.notes.core.model.NoteManifest
 import com.openlight.notes.repository.NoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -64,6 +67,10 @@ class TextEditorViewModel(
 
     fun save() {
         viewModelScope.launch {
+            val s = _state.value
+            val manifest = NoteManifest(id = s.id, title = s.title, folder = s.folder)
+            val doc = Document(blocks = listOf(Block.Text(id = s.id, text = s.text)))
+            repository.saveNote(s.id, manifest, doc)
             _state.value = _state.value.copy(isSaved = true)
         }
     }

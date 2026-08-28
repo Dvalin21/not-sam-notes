@@ -5,19 +5,27 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.openlight.notes.db.NoteEntity
 import com.openlight.notes.repository.NoteRepository
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 class NotesViewModel(private val repository: NoteRepository) : ViewModel() {
     val notes: StateFlow<List<NoteEntity>> = repository.observeNotes()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun createNote(title: String = "Untitled") {
+    private val _lastCreatedId = MutableStateFlow<String?>(null)
+    val lastCreatedId: StateFlow<String?> = _lastCreatedId.asStateFlow()
+
+    fun createNote(title: String = "Untitled"): String {
+        val id = UUID.randomUUID().toString()
         viewModelScope.launch {
-            repository.createNote(title)
+            repository.createNoteWithId(id, title)
         }
+        return id
     }
 }
 

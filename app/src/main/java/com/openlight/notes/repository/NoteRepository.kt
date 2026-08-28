@@ -30,6 +30,22 @@ class NoteRepository(
         return manifest.id
     }
 
+    suspend fun createNoteWithId(id: String, title: String = "Untitled", folder: String = "/"): String {
+        val file = File(notesDir, "$id.note")
+        notesDir.mkdirs()
+        val manifest = NoteManifest(
+            id = id,
+            title = title,
+            created = System.currentTimeMillis(),
+            modified = System.currentTimeMillis()
+        )
+        val document = Document()
+        NoteContainer.write(file, manifest, document)
+        val entity = manifest.toEntity(file.absolutePath)
+        noteDao.upsert(entity)
+        return id
+    }
+
     suspend fun saveNote(id: String, manifest: NoteManifest, document: Document) {
         val entity = noteDao.getById(id) ?: return
         val file = File(entity.filePath)
