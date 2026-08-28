@@ -30,7 +30,8 @@ fun InkCanvas(
     onStrokeFinished: (InkStroke) -> Unit,
     onErase: (Offset) -> Unit,
     modifier: Modifier = Modifier,
-    isEraser: Boolean = false
+    isEraser: Boolean = false,
+    pageTemplate: String = "blank"
 ) {
     val currentPoints = remember { mutableStateListOf<FloatArray>() }
 
@@ -84,6 +85,9 @@ fun InkCanvas(
                     )
                 }
         ) {
+            // Draw page template
+            drawPageTemplate(pageTemplate, size.width, size.height)
+            
             // Draw completed strokes
             strokes.forEach { stroke ->
                 drawStroke(stroke)
@@ -92,6 +96,67 @@ fun InkCanvas(
             // Draw current stroke in progress
             if (currentPoints.isNotEmpty()) {
                 drawInProgressPoints(currentPoints.toList(), currentBrush)
+            }
+        }
+    }
+}
+
+private fun DrawScope.drawPageTemplate(template: String, width: Float, height: Float) {
+    val lineColor = Color(0xFFE0E0E0)
+    val strokeWidth = 1f
+    
+    when (template) {
+        "lines" -> {
+            val lineSpacing = 40f
+            var y = lineSpacing
+            while (y < height) {
+                drawLine(
+                    color = lineColor,
+                    start = Offset(0f, y),
+                    end = Offset(width, y),
+                    strokeWidth = strokeWidth
+                )
+                y += lineSpacing
+            }
+        }
+        "grid" -> {
+            val gridSpacing = 40f
+            var x = gridSpacing
+            while (x < width) {
+                drawLine(
+                    color = lineColor,
+                    start = Offset(x, 0f),
+                    end = Offset(x, height),
+                    strokeWidth = strokeWidth
+                )
+                x += gridSpacing
+            }
+            var y = gridSpacing
+            while (y < height) {
+                drawLine(
+                    color = lineColor,
+                    start = Offset(0f, y),
+                    end = Offset(width, y),
+                    strokeWidth = strokeWidth
+                )
+                y += gridSpacing
+            }
+        }
+        "dots" -> {
+            val dotSpacing = 40f
+            val dotRadius = 2f
+            var y = dotSpacing
+            while (y < height) {
+                var x = dotSpacing
+                while (x < width) {
+                    drawCircle(
+                        color = lineColor,
+                        radius = dotRadius,
+                        center = Offset(x, y)
+                    )
+                    x += dotSpacing
+                }
+                y += dotSpacing
             }
         }
     }

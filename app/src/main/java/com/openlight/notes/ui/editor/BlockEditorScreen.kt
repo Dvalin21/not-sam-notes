@@ -11,11 +11,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -24,9 +22,11 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -38,7 +38,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,10 +49,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.openlight.notes.AppContainer
 import com.openlight.notes.core.model.Block
+import com.openlight.notes.core.refinement.HandwritingRefinement
 import com.openlight.notes.ui.audio.AudioBlock
 import com.openlight.notes.ui.ink.InkCanvas
 import com.openlight.notes.ui.text.RichTextEditor
-import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -207,19 +209,68 @@ private fun BlockCard(
                             addAll(blockItem.strokes)
                         }
                     }
-                    InkCanvas(
-                        strokes = strokes,
-                        currentBrush = com.openlight.notes.core.ink.Brush(),
-                        onStrokeFinished = { stroke ->
-                            strokes.add(stroke)
-                            onStrokesChange(strokes.toList())
-                        },
-                        onErase = { /* erase handled internally */ },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                            .padding(8.dp)
-                    )
+                    var template by remember { mutableStateOf("blank") }
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        // Template selector
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            listOf("blank", "lines", "grid", "dots").forEach { t ->
+                                FilterChip(
+                                    selected = template == t,
+                                    onClick = { template = t },
+                                    label = { Text(t, maxLines = 1) }
+                                )
+                            }
+                        }
+                        // Refinement toolbar
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    val refined = HandwritingRefinement.straighten(strokes.toList())
+                                    strokes.clear()
+                                    strokes.addAll(refined)
+                                    onStrokesChange(strokes.toList())
+                                },
+                                enabled = strokes.isNotEmpty()
+                            ) {
+                                Text("Straighten", maxLines = 1)
+                            }
+                            Button(
+                                onClick = {
+                                    val refined = HandwritingRefinement.tidy(strokes.toList())
+                                    strokes.clear()
+                                    strokes.addAll(refined)
+                                    onStrokesChange(strokes.toList())
+                                },
+                                enabled = strokes.isNotEmpty()
+                            ) {
+                                Text("Tidy", maxLines = 1)
+                            }
+                        }
+                        InkCanvas(
+                            strokes = strokes,
+                            currentBrush = com.openlight.notes.core.ink.Brush(),
+                            onStrokeFinished = { stroke ->
+                                strokes.add(stroke)
+                                onStrokesChange(strokes.toList())
+                            },
+                            onErase = { /* erase handled internally */ },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                                .padding(8.dp),
+                            pageTemplate = template
+                        )
+                    }
                 }
                 is Block.Image -> {
                     Box(
