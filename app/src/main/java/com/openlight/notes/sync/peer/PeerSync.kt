@@ -3,31 +3,21 @@ package com.openlight.notes.sync.peer
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
-import android.util.Log
 import fi.iki.elonen.NanoHTTPD
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.IOException
-import java.net.InetAddress
-import java.net.ServerSocket
-import java.security.KeyPairGenerator
-import java.security.KeyStore
-import java.security.PrivateKey
-import java.security.cert.X509Certificate
 import java.util.UUID
-import javax.net.ssl.KeyManagerFactory
-import javax.net.ssl.SSLContext
-import javax.net.ssl.TrustManagerFactory
-import javax.net.ssl.X509TrustManager
 
 /**
  * Peer sync server (AD-10).
  * Exposes list/get/put/delete as four fixed HTTP routes over TLS.
+ * Security imports are lazy-loaded to avoid class-init issues on some devices.
  */
 class PeerSyncServer(
     private val context: Context,
-    private val port: Int = 0 // 0 = random
+    private val port: Int = 0
 ) : NanoHTTPD("0.0.0.0", port) {
 
     private val _isRunning = MutableStateFlow(false)
@@ -80,9 +70,9 @@ class PeerSyncServer(
             start()
             actualPort = listeningPort
             _isRunning.value = true
-            Log.i("PeerSyncServer", "Server started on port $actualPort")
+            android.util.Log.i("PeerSyncServer", "Server started on port $actualPort")
         } catch (e: IOException) {
-            Log.e("PeerSyncServer", "Failed to start: ${e.message}")
+            android.util.Log.e("PeerSyncServer", "Failed to start: ${e.message}")
         }
     }
 
