@@ -20,12 +20,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Redo
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Undo
+import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -44,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -61,14 +63,12 @@ import com.openlight.notes.ui.ink.InkCanvas
 import kotlin.math.roundToInt
 
 private enum class CanvasTool {
-    PEN, MARKER, HIGHLIGHTER, ERASER, TEXT, IMAGE, SELECT
+    PEN, MARKER, HIGHLIGHTER, ERASER, TEXT, IMAGE
 }
 
 private data class ToolState(
     val tool: CanvasTool = CanvasTool.PEN,
-    val brush: Brush = Brush(),
-    val canUndo: Boolean = false,
-    val canRedo: Boolean = false
+    val brush: Brush = Brush()
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -85,6 +85,7 @@ fun BlockEditorScreen(
 
     var toolState by remember { mutableStateOf(ToolState()) }
     var selectedBlockId by remember { mutableStateOf<String?>(null) }
+    var showColorPicker by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -105,44 +106,49 @@ fun BlockEditorScreen(
                     }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
-                },
-                actions = {
-                    IconButton(onClick = { viewModel.undo() }, enabled = state.canUndo) {
-                        Icon(Icons.Default.Undo, contentDescription = "Undo")
-                    }
-                    IconButton(onClick = { viewModel.redo() }, enabled = state.canRedo) {
-                        Icon(Icons.Default.Redo, contentDescription = "Redo")
-                    }
                 }
             )
         },
         bottomBar = {
-            CanvasBottomToolbar(
-                toolState = toolState,
-                canUndo = state.canUndo,
-                canRedo = state.canRedo,
-                onToolSelected = { tool ->
-                    toolState = toolState.copy(tool = tool)
-                },
-                onBrushSelected = { brush ->
-                    toolState = toolState.copy(brush = brush)
-                },
-                onColorSelected = { color ->
-                    toolState = toolState.copy(
-                        brush = toolState.brush.copy(color = color)
+            Column {
+                // Color picker popup
+                if (showColorPicker) {
+                    ColorPalette(
+                        currentColor = toolState.brush.color,
+                        onColorSelected = { color ->
+                            toolState = toolState.copy(brush = toolState.brush.copy(color = color))
+                            showColorPicker = false
+                        }
                     )
-                },
-                onSizeChanged = { size ->
-                    toolState = toolState.copy(
-                        brush = toolState.brush.copy(size = size)
+                }
+
+                // Size slider (visible when drawing tool active)
+                if (toolState.tool in listOf(CanvasTool.PEN, CanvasTool.MARKER, CanvasTool.HIGHLIGHTER)) {
+                    Slider(
+                        value = toolState.brush.size,
+                        onValueChange = { size ->
+                            toolState = toolState.copy(brush = toolState.brush.copy(size = size))
+                        },
+                        valueRange = 1f..25f,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
                     )
-                },
-                onEraserToggled = {
-                    toolState = toolState.copy(tool = CanvasTool.ERASER)
-                },
-                onUndo = { viewModel.undo() },
-                onRedo = { viewModel.redo() }
-            )
+                }
+
+                // Main toolbar
+                SamsungStyleToolbar(
+                    toolState = toolState,
+                    canUndo = state.canUndo,
+                    canRedo = state.canRedo,
+                    onToolSelected = { tool ->
+                        toolState = toolState.copy(tool = tool)
+                        showColorPicker = tool in listOf(CanvasTool.PEN, CanvasTool.MARKER, CanvasTool.HIGHLIGHTER)
+                    },
+                    onUndo = { viewModel.undo() },
+                    onRedo = { viewModel.redo() }
+                )
+            }
         }
     ) { padding ->
         if (state.isLoading) {
@@ -155,12 +161,15 @@ fun BlockEditorScreen(
                 Text("Loading...")
             }
         } else {
+            // Paper-like canvas with shadow
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
+                    .padding(16.dp)
+                    .shadow(8.dp, RoundedCornerShape(8.dp))
+                    .background(Color(0xFFFAFAFA), RoundedCornerShape(8.dp))
             ) {
-                // Main canvas area - full screen
                 InkCanvas(
                     strokes = state.strokes,
                     currentBrush = toolState.brush,
@@ -176,30 +185,22 @@ fun BlockEditorScreen(
                     modifier = Modifier.fillMaxSize(),
                     onCanvasTap = { offset ->
                         when (toolState.tool) {
-                            CanvasTool.TEXT -> {
-                                viewModel.addTextBlock(offset.x, offset.y)
-                            }
-                            CanvasTool.IMAGE -> {
-                                viewModel.addImageBlock(offset.x, offset.y)
-                            }
-                            else -> { /* other tools don't place blocks */ }
+                            CanvasTool.TEXT -> viewModel.addTextBlock(offset.x, offset.y)
+                            CanvasTool.IMAGE -> viewModel.addImageBlock(offset.x, offset.y)
+                            else -> {}
                         }
                     }
                 )
 
-                // Floating text blocks overlay
+                // Floating text blocks
                 state.blocks.filter { it.block is Block.Text }.forEach { item ->
                     val block = item.block as Block.Text
                     FloatingTextBlock(
                         blockItem = block,
                         isSelected = selectedBlockId == block.id,
                         onSelect = { selectedBlockId = block.id },
-                        onMove = { dx, dy ->
-                            viewModel.moveTextBlock(block.id, dx, dy)
-                        },
-                        onTextChange = { text ->
-                            viewModel.updateTextBlock(block.id, text, TextFieldValue(text))
-                        },
+                        onMove = { dx, dy -> viewModel.moveTextBlock(block.id, dx, dy) },
+                        onTextChange = { text -> viewModel.updateTextBlock(block.id, text, TextFieldValue(text)) },
                         onDelete = {
                             viewModel.deleteBlock(block.id)
                             if (selectedBlockId == block.id) selectedBlockId = null
@@ -207,215 +208,137 @@ fun BlockEditorScreen(
                     )
                 }
 
-                // Floating image blocks overlay
+                // Floating image blocks
                 state.blocks.filter { it.block is Block.Image }.forEach { item ->
                     val block = item.block as Block.Image
                     FloatingImageBlock(
                         block = block,
                         isSelected = selectedBlockId == block.id,
                         onSelect = { selectedBlockId = block.id },
-                        onMove = { dx, dy ->
-                            viewModel.moveImageBlock(block.id, dx, dy)
-                        },
-                        onResize = { w, h ->
-                            viewModel.resizeImageBlock(block.id, w, h)
-                        },
+                        onMove = { dx, dy -> viewModel.moveImageBlock(block.id, dx, dy) },
+                        onResize = { w, h -> viewModel.resizeImageBlock(block.id, w, h) },
                         onDelete = {
                             viewModel.deleteBlock(block.id)
                             if (selectedBlockId == block.id) selectedBlockId = null
                         }
                     )
                 }
-
-                // Floating audio blocks overlay
-                state.blocks.filter { it.block is Block.Audio }.forEach { item ->
-                    val block = item.block as Block.Audio
-                    FloatingAudioBlock(block = block)
-                }
             }
         }
     }
 }
 
 @Composable
-private fun CanvasBottomToolbar(
+private fun SamsungStyleToolbar(
     toolState: ToolState,
     canUndo: Boolean,
     canRedo: Boolean,
     onToolSelected: (CanvasTool) -> Unit,
-    onBrushSelected: (Brush) -> Unit,
-    onColorSelected: (String) -> Unit,
-    onSizeChanged: (Float) -> Unit,
-    onEraserToggled: () -> Unit,
     onUndo: () -> Unit,
     onRedo: () -> Unit
 ) {
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        // Row 1: Tool selection + Undo/Redo
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                // Pen tool
-                ToolButton(
-                    label = "P",
-                    isSelected = toolState.tool == CanvasTool.PEN,
-                    onClick = {
-                        onToolSelected(CanvasTool.PEN)
-                        onBrushSelected(Brush("pen", toolState.brush.color, 3.5f))
-                    }
-                )
-                // Marker tool
-                ToolButton(
-                    label = "M",
-                    isSelected = toolState.tool == CanvasTool.MARKER,
-                    onClick = {
-                        onToolSelected(CanvasTool.MARKER)
-                        onBrushSelected(Brush("marker", toolState.brush.color, 8f))
-                    }
-                )
-                // Highlighter tool
-                ToolButton(
-                    label = "H",
-                    isSelected = toolState.tool == CanvasTool.HIGHLIGHTER,
-                    onClick = {
-                        onToolSelected(CanvasTool.HIGHLIGHTER)
-                        onBrushSelected(Brush("highlighter", toolState.brush.color, 15f))
-                    }
-                )
-                // Eraser
-                ToolButton(
-                    label = "E",
-                    isSelected = toolState.tool == CanvasTool.ERASER,
-                    onClick = {
-                        onToolSelected(CanvasTool.ERASER)
-                        onEraserToggled()
-                    }
-                )
-                // Text tool
-                ToolButton(
-                    label = "T",
-                    isSelected = toolState.tool == CanvasTool.TEXT,
-                    onClick = { onToolSelected(CanvasTool.TEXT) }
-                )
-                // Image tool
-                ToolButton(
-                    label = "I",
-                    isSelected = toolState.tool == CanvasTool.IMAGE,
-                    onClick = { onToolSelected(CanvasTool.IMAGE) }
-                )
-                // Select tool
-                ToolButton(
-                    label = "S",
-                    isSelected = toolState.tool == CanvasTool.SELECT,
-                    onClick = { onToolSelected(CanvasTool.SELECT) }
-                )
-            }
-
-            Row {
-                IconButton(onClick = onUndo, enabled = canUndo) {
-                    Icon(
-                        Icons.Default.Undo,
-                        contentDescription = "Undo",
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                IconButton(onClick = onRedo, enabled = canRedo) {
-                    Icon(
-                        Icons.Default.Redo,
-                        contentDescription = "Redo",
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
+        // Pen
+        ToolIconButton(
+            icon = Icons.Default.Brush,
+            isSelected = toolState.tool == CanvasTool.PEN,
+            onClick = { onToolSelected(CanvasTool.PEN) }
+        )
+        // Marker
+        ToolIconButton(
+            icon = Icons.Outlined.Circle,
+            isSelected = toolState.tool == CanvasTool.MARKER,
+            onClick = { onToolSelected(CanvasTool.MARKER) }
+        )
+        // Highlighter
+        ToolIconButton(
+            icon = Icons.Default.Edit,
+            isSelected = toolState.tool == CanvasTool.HIGHLIGHTER,
+            onClick = { onToolSelected(CanvasTool.HIGHLIGHTER) }
+        )
+        // Eraser
+        ToolIconButton(
+            icon = Icons.Default.Edit, // TODO: eraser icon
+            isSelected = toolState.tool == CanvasTool.ERASER,
+            onClick = { onToolSelected(CanvasTool.ERASER) }
+        )
+        // Text
+        ToolIconButton(
+            icon = Icons.Default.TextFields,
+            isSelected = toolState.tool == CanvasTool.TEXT,
+            onClick = { onToolSelected(CanvasTool.TEXT) }
+        )
+        // Image
+        ToolIconButton(
+            icon = Icons.Default.Image,
+            isSelected = toolState.tool == CanvasTool.IMAGE,
+            onClick = { onToolSelected(CanvasTool.IMAGE) }
+        )
+        // Undo
+        IconButton(onClick = onUndo, enabled = canUndo) {
+            Icon(Icons.Default.Undo, contentDescription = "Undo")
         }
-
-        // Row 2: Color palette (visible when drawing tool active)
-        if (toolState.tool in listOf(CanvasTool.PEN, CanvasTool.MARKER, CanvasTool.HIGHLIGHTER)) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                val colors = listOf(
-                    "#1A1A1A", "#E53935", "#1E88E5", "#43A047",
-                    "#FB8C00", "#8E24AA", "#00ACC1", "#F4511E"
-                )
-                colors.forEach { color ->
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(Color(android.graphics.Color.parseColor(color)))
-                            .border(
-                                width = if (toolState.brush.color == color) 3.dp else 1.dp,
-                                color = if (toolState.brush.color == color) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.outline,
-                                shape = CircleShape
-                            )
-                            .clickable { onColorSelected(color) }
-                    )
-                }
-            }
-
-            // Row 3: Size slider
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 2.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Size", style = MaterialTheme.typography.labelSmall)
-                Slider(
-                    value = toolState.brush.size,
-                    onValueChange = { onSizeChanged(it) },
-                    valueRange = 1f..25f,
-                    modifier = Modifier.padding(start = 8.dp)
-                )
-            }
+        // Redo
+        IconButton(onClick = onRedo, enabled = canRedo) {
+            Icon(Icons.Default.Redo, contentDescription = "Redo")
         }
     }
 }
 
 @Composable
-private fun ToolButton(
-    label: String,
+private fun ToolIconButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(
-                if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                else Color.Transparent
-            )
-            .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = if (isSelected) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurface
+    IconButton(onClick = onClick) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )
     }
 }
 
 @Composable
+private fun ColorPalette(
+    currentColor: String,
+    onColorSelected: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        val colors = listOf("#1A1A1A", "#E53935", "#1E88E5", "#43A047", "#FB8C00", "#8E24AA")
+        colors.forEach { color ->
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(Color(android.graphics.Color.parseColor(color)))
+                    .border(
+                        width = if (currentColor == color) 3.dp else 1.dp,
+                        color = if (currentColor == color) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                        shape = CircleShape
+                    )
+                    .clickable { onColorSelected(color) }
+            )
+        }
+    }
+}
+
+@Composable
 private fun FloatingTextBlock(
-    blockItem: com.openlight.notes.core.model.Block.Text,
+    blockItem: Block.Text,
     isSelected: Boolean,
     onSelect: () -> Unit,
     onMove: (Float, Float) -> Unit,
@@ -444,7 +367,6 @@ private fun FloatingTextBlock(
             }
             .clickable { onSelect() }
     ) {
-        // Text content display
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -460,7 +382,6 @@ private fun FloatingTextBlock(
             )
         }
 
-        // Draggable handle indicator (top-right corner)
         if (isSelected) {
             Box(
                 modifier = Modifier
@@ -471,28 +392,15 @@ private fun FloatingTextBlock(
                     .clickable { onDelete() },
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    "×",
-                    color = Color.White,
-                    fontSize = 14.sp
-                )
+                Text("×", color = Color.White, fontSize = 14.sp)
             }
-
-            // Resize handle (bottom-right corner)
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(20.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.secondary)
-            )
         }
     }
 }
 
 @Composable
 private fun FloatingImageBlock(
-    block: com.openlight.notes.core.model.Block.Image,
+    block: Block.Image,
     isSelected: Boolean,
     onSelect: () -> Unit,
     onMove: (Float, Float) -> Unit,
@@ -504,8 +412,7 @@ private fun FloatingImageBlock(
     Box(
         modifier = Modifier
             .offset { IntOffset(block.x.roundToInt(), block.y.roundToInt()) }
-            .width(with(density) { block.displayW.toDp() })
-            .height(with(density) { block.displayH.toDp() })
+            .size(with(density) { block.displayW.toDp() }, with(density) { block.displayH.toDp() })
             .then(
                 if (isSelected) Modifier.border(
                     2.dp,
@@ -513,7 +420,6 @@ private fun FloatingImageBlock(
                     RoundedCornerShape(4.dp)
                 ) else Modifier
             )
-            .background(Color.LightGray)
             .pointerInput(block.id) {
                 detectDragGestures { change, dragAmount ->
                     change.consume()
@@ -522,77 +428,40 @@ private fun FloatingImageBlock(
             }
             .clickable { onSelect() }
     ) {
-        // Image placeholder content
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.LightGray),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                Icons.Default.Image,
-                contentDescription = "Image",
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                modifier = Modifier.size(48.dp)
-            )
+            Text("Image", style = MaterialTheme.typography.bodySmall)
         }
 
-        // Selection UI
         if (isSelected) {
-            // Delete button (top-right)
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .size(24.dp)
+                    .size(20.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.error)
+                    .background(MaterialTheme.colorScheme.primary)
                     .clickable { onDelete() },
                 contentAlignment = Alignment.Center
             ) {
-                Text("×", color = Color.White, fontSize = 16.sp)
+                Text("×", color = Color.White, fontSize = 14.sp)
             }
-
-            // Resize handle (bottom-right corner)
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(24.dp)
-                    .clip(RoundedCornerShape(topStart = 8.dp))
-                    .background(MaterialTheme.colorScheme.primary)
-                    .pointerInput(block.id) {
-                        detectDragGestures { change, dragAmount ->
-                            change.consume()
-                            val newW = (block.displayW + dragAmount.x).coerceIn(60f, 600f)
-                            val newH = (block.displayH + dragAmount.y).coerceIn(40f, 600f)
-                            onResize(newW, newH)
-                        }
-                    }
-            )
         }
     }
 }
 
 @Composable
-private fun FloatingAudioBlock(
-    block: com.openlight.notes.core.model.Block.Audio
-) {
-    // Placeholder for audio block - position at bottom
+private fun FloatingAudioBlock(block: Block.Audio) {
     Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .height(60.dp)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(8.dp),
+            .size(48.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.secondary),
         contentAlignment = Alignment.Center
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(Icons.Default.Mic, contentDescription = "Audio", tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(8.dp))
-            Text(
-                "Audio (${block.durMs / 1000}s)",
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
+        Icon(Icons.Default.Edit, contentDescription = "Audio", tint = Color.White)
     }
 }
