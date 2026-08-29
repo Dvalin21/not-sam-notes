@@ -171,9 +171,9 @@ fun BlockEditorScreen(
                         viewModel.eraseAt(offset.x, offset.y)
                     },
                     isEraser = toolState.tool == CanvasTool.ERASER,
+                    isPlacementMode = toolState.tool == CanvasTool.TEXT || toolState.tool == CanvasTool.IMAGE,
                     pageTemplate = state.pageTemplate,
                     modifier = Modifier.fillMaxSize(),
-                    // Handle tap-to-place for TEXT and IMAGE tools
                     onCanvasTap = { offset ->
                         when (toolState.tool) {
                             CanvasTool.TEXT -> {

@@ -271,9 +271,10 @@ class BlockEditorViewModel(
             val document = Document(blocks = blocks)
             repository.saveNote(noteId, manifest, document)
 
-            // Save ink strokes separately
-            val inkBlockId = s.blocks.firstOrNull { it.block is Block.Ink }?.id
-            if (inkBlockId != null && allStrokes.isNotEmpty()) {
+            // Save all canvas strokes to a synthetic ink block
+            if (allStrokes.isNotEmpty()) {
+                val inkBlockId = s.blocks.firstOrNull { it.block is Block.Ink }?.id
+                    ?: "canvas_strokes_${noteId}"
                 com.openlight.notes.core.container.NoteContainer.writeStrokes(file, inkBlockId, allStrokes.toList())
             }
 

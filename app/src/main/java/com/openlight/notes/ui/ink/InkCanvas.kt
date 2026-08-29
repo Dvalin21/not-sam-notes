@@ -34,6 +34,7 @@ fun InkCanvas(
     modifier: Modifier = Modifier,
     isEraser: Boolean = false,
     pageTemplate: String = "blank",
+    isPlacementMode: Boolean = false,
     onCanvasTap: ((Offset) -> Unit)? = null
 ) {
     val currentPoints = remember { mutableStateListOf<FloatArray>() }
@@ -46,14 +47,14 @@ fun InkCanvas(
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(isEraser, onCanvasTap) {
-                    // If onCanvasTap is provided and we're in a non-drawing mode (text/image placement),
-                    // detect taps instead of drags
-                    if (onCanvasTap != null && isEraser) {
+                .pointerInput(isEraser, isPlacementMode, onCanvasTap) {
+                    if (isPlacementMode && onCanvasTap != null) {
+                        // Placement mode: tap to place blocks
                         detectTapGestures { offset ->
                             onCanvasTap.invoke(offset)
                         }
                     } else {
+                        // Drawing mode: drag to draw
                         detectDragGestures(
                             onDragStart = { offset ->
                                 if (!isEraser) {
@@ -95,16 +96,6 @@ fun InkCanvas(
                         )
                     }
                 }
-                // Separate tap detection for text/image placement when not erasing
-                .then(
-                    if (onCanvasTap != null && !isEraser) {
-                        Modifier.pointerInput(Unit) {
-                            detectTapGestures(
-                                onTap = { offset -> onCanvasTap.invoke(offset) }
-                            )
-                        }
-                    } else Modifier
-                )
         ) {
             // Draw page template
             drawPageTemplate(pageTemplate, size.width, size.height)
