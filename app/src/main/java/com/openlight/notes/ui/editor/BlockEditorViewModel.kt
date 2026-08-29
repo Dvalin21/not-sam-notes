@@ -32,8 +32,12 @@ data class BlockEditorState(
     val title: String = "",
     val folder: String = "/",
     val blocks: List<BlockItem> = emptyList(),
+    val strokes: List<Stroke> = emptyList(),
     val isLoading: Boolean = true,
-    val isSaved: Boolean = false
+    val isSaved: Boolean = false,
+    val canUndo: Boolean = false,
+    val canRedo: Boolean = false,
+    val pageTemplate: String = "blank"
 )
 
 class BlockEditorViewModel(
@@ -42,6 +46,10 @@ class BlockEditorViewModel(
 ) : ViewModel() {
     private val _state = MutableStateFlow(BlockEditorState())
     val state: StateFlow<BlockEditorState> = _state.asStateFlow()
+
+    private val allStrokes = mutableListOf<Stroke>()
+    private val undoStack = ArrayDeque<List<Stroke>>()
+    private val redoStack = ArrayDeque<List<Stroke>>()
 
     init {
         loadNote()
@@ -63,6 +71,7 @@ class BlockEditorViewModel(
                         )
                         is Block.Ink -> {
                             val strokes = com.openlight.notes.core.container.NoteContainer.readStrokes(file, block.id)
+                            allStrokes.addAll(strokes)
                             BlockItem(id = block.id, block = block, strokes = strokes)
                         }
                         is Block.Image -> BlockItem(id = block.id, block = block)
@@ -75,6 +84,7 @@ class BlockEditorViewModel(
                     title = entity.title,
                     folder = entity.folder,
                     blocks = blocks,
+                    strokes = allStrokes.toList(),
                     isLoading = false
                 )
             } else {
@@ -87,9 +97,9 @@ class BlockEditorViewModel(
         _state.value = _state.value.copy(title = title, isSaved = false)
     }
 
-    fun addTextBlock() {
+    fun addTextBlock(x: Float, y: Float) {
         val id = UUID.randomUUID().toString()
-        val block = Block.Text(id = id, text = "")
+        val block = Block.Text(id = id, text = "", x = x, y = y)
         val item = BlockItem(id = id, block = block, text = "")
         _state.value = _state.value.copy(
             blocks = _state.value.blocks + item,
@@ -107,9 +117,9 @@ class BlockEditorViewModel(
         )
     }
 
-    fun addImageBlock() {
+    fun addImageBlock(x: Float, y: Float) {
         val id = UUID.randomUUID().toString()
-        val block = Block.Image(id = id, media = "")
+        val block = Block.Image(id = id, media = "", x = x, y = y)
         val item = BlockItem(id = id, block = block)
         _state.value = _state.value.copy(
             blocks = _state.value.blocks + item,
@@ -142,13 +152,100 @@ class BlockEditorViewModel(
         )
     }
 
-    fun updateInkStrokes(blockId: String, strokes: List<Stroke>) {
+    fun moveTextBlock(blockId: String, x: Float, y: Float) {
         _state.value = _state.value.copy(
             blocks = _state.value.blocks.map { item ->
-                if (item.id == blockId) item.copy(strokes = strokes) else item
+                if (item.id == blockId && item.block is Block.Text) {
+                    item.copy(block = (item.block as Block.Text).copy(x = x, y = y))
+                } else item
             },
             isSaved = false
         )
+    }
+
+    fun moveImageBlock(blockId: String, x: Float, y: Float) {
+        _state.value = _state.value.copy(
+            blocks = _state.value.blocks.map { item ->
+                if (item.id == blockId && item.block is Block.Image) {
+                    item.copy(block = (item.block as Block.Image).copy(x = x, y = y))
+                } else item
+            },
+            isSaved = false
+        )
+    }
+
+    fun resizeImageBlock(blockId: String, w: Float, h: Float) {
+        _state.value = _state.value.copy(
+            blocks = _state.value.blocks.map { item ->
+                if (item.id == blockId && item.block is Block.Image) {
+                    item.copy(block = (item.block as Block.Image).copy(displayW = w, displayH = h))
+                } else item
+            },
+            isSaved = false
+        )
+    }
+
+    fun addStroke(stroke: Stroke) {
+        saveUndoState()
+        allStrokes.add(stroke)
+        redoStack.clear()
+        _state.value = _state.value.copy(
+            strokes = allStrokes.toList(),
+            canUndo = undoStack.isNotEmpty(),
+            canRedo = redoStack.isNotEmpty(),
+            isSaved = false
+        )
+    }
+
+    fun eraseAt(x: Float, y: Float) {
+        val radius = 25f
+        val removed = allStrokes.removeAll { stroke ->
+            stroke.points.any { point ->
+                val dx = point[0] - x
+                val dy = point[1] - y
+                dx * dx + dy * dy < radius * radius
+            }
+        }
+        if (removed) {
+            saveUndoState()
+            redoStack.clear()
+            _state.value = _state.value.copy(
+                strokes = allStrokes.toList(),
+                canUndo = undoStack.isNotEmpty(),
+                canRedo = redoStack.isNotEmpty(),
+                isSaved = false
+            )
+        }
+    }
+
+    fun undo() {
+        if (undoStack.isEmpty()) return
+        redoStack.addLast(allStrokes.toList())
+        val previous = undoStack.removeLast()
+        allStrokes.clear()
+        allStrokes.addAll(previous)
+        _state.value = _state.value.copy(
+            strokes = allStrokes.toList(),
+            canUndo = undoStack.isNotEmpty(),
+            canRedo = redoStack.isNotEmpty()
+        )
+    }
+
+    fun redo() {
+        if (redoStack.isEmpty()) return
+        undoStack.addLast(allStrokes.toList())
+        val next = redoStack.removeLast()
+        allStrokes.clear()
+        allStrokes.addAll(next)
+        _state.value = _state.value.copy(
+            strokes = allStrokes.toList(),
+            canUndo = undoStack.isNotEmpty(),
+            canRedo = redoStack.isNotEmpty()
+        )
+    }
+
+    fun setPageTemplate(template: String) {
+        _state.value = _state.value.copy(pageTemplate = template, isSaved = false)
     }
 
     fun deleteBlock(blockId: String) {
@@ -158,21 +255,9 @@ class BlockEditorViewModel(
         )
     }
 
-    fun moveBlockUp(index: Int) {
-        if (index <= 0) return
-        val blocks = _state.value.blocks.toMutableList()
-        val item = blocks.removeAt(index)
-        blocks.add(index - 1, item)
-        _state.value = _state.value.copy(blocks = blocks, isSaved = false)
-    }
-
-    fun moveBlockDown(index: Int) {
-        val blocks = _state.value.blocks
-        if (index >= blocks.size - 1) return
-        val mutable = blocks.toMutableList()
-        val item = mutable.removeAt(index)
-        mutable.add(index + 1, item)
-        _state.value = _state.value.copy(blocks = mutable, isSaved = false)
+    private fun saveUndoState() {
+        undoStack.addLast(allStrokes.toList())
+        if (undoStack.size > 100) undoStack.removeFirst()
     }
 
     fun save() {
@@ -185,14 +270,13 @@ class BlockEditorViewModel(
             val blocks = s.blocks.map { it.block }
             val document = Document(blocks = blocks)
             repository.saveNote(noteId, manifest, document)
-            
+
             // Save ink strokes separately
-            s.blocks.forEach { item ->
-                if (item.block is Block.Ink && item.strokes.isNotEmpty()) {
-                    com.openlight.notes.core.container.NoteContainer.writeStrokes(file, item.id, item.strokes)
-                }
+            val inkBlockId = s.blocks.firstOrNull { it.block is Block.Ink }?.id
+            if (inkBlockId != null && allStrokes.isNotEmpty()) {
+                com.openlight.notes.core.container.NoteContainer.writeStrokes(file, inkBlockId, allStrokes.toList())
             }
-            
+
             _state.value = _state.value.copy(isSaved = true)
         }
     }

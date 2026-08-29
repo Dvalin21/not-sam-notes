@@ -11,7 +11,11 @@ sealed class Block {
     data class Text(
         override val id: String,
         val text: String = "",
-        val spans: List<Span> = emptyList()
+        val spans: List<Span> = emptyList(),
+        val x: Float = 0f,
+        val y: Float = 0f,
+        val width: Float = 200f,
+        val height: Float = 60f
     ) : Block()
 
     @Serializable
@@ -25,7 +29,11 @@ sealed class Block {
         override val id: String,
         val media: String,
         val w: Int = 0,
-        val h: Int = 0
+        val h: Int = 0,
+        val x: Float = 0f,
+        val y: Float = 0f,
+        val displayW: Float = 200f,
+        val displayH: Float = 150f
     ) : Block()
 
     @Serializable

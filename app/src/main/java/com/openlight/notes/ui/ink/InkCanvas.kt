@@ -3,6 +3,7 @@ package com.openlight.notes.ui.ink
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
@@ -17,11 +18,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import com.openlight.notes.core.ink.Brush
 import com.openlight.notes.core.ink.Stroke as InkStroke
-import com.openlight.notes.core.ink.UndoStack
 
 /**
  * Phase 2: Ink canvas using raw pointer input (Phase 2a).
  * Will be upgraded to androidx.ink in Phase 2b after device input probing.
+ * 
+ * Now supports onCanvasTap for placing text/image blocks in canvas mode.
  */
 @Composable
 fun InkCanvas(
@@ -31,7 +33,8 @@ fun InkCanvas(
     onErase: (Offset) -> Unit,
     modifier: Modifier = Modifier,
     isEraser: Boolean = false,
-    pageTemplate: String = "blank"
+    pageTemplate: String = "blank",
+    onCanvasTap: ((Offset) -> Unit)? = null
 ) {
     val currentPoints = remember { mutableStateListOf<FloatArray>() }
 
@@ -43,47 +46,65 @@ fun InkCanvas(
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(isEraser) {
-                    detectDragGestures(
-                        onDragStart = { offset ->
-                            if (!isEraser) {
-                                currentPoints.clear()
-                                currentPoints.add(
-                                    floatArrayOf(
-                                        offset.x, offset.y,
-                                        System.currentTimeMillis().toFloat(),
-                                        0.5f, 0f, 0f
-                                    )
-                                )
-                            }
-                        },
-                        onDrag = { change, _ ->
-                            change.consume()
-                            if (isEraser) {
-                                onErase(change.position)
-                            } else {
-                                currentPoints.add(
-                                    floatArrayOf(
-                                        change.position.x, change.position.y,
-                                        System.currentTimeMillis().toFloat(),
-                                        0.5f + (change.position.y / size.height).coerceIn(-0.5f, 0.5f),
-                                        0f, 0f
-                                    )
-                                )
-                            }
-                        },
-                        onDragEnd = {
-                            if (!isEraser && currentPoints.isNotEmpty()) {
-                                val stroke = InkStroke(
-                                    brush = currentBrush,
-                                    points = currentPoints.toList()
-                                )
-                                onStrokeFinished(stroke)
-                                currentPoints.clear()
-                            }
+                .pointerInput(isEraser, onCanvasTap) {
+                    // If onCanvasTap is provided and we're in a non-drawing mode (text/image placement),
+                    // detect taps instead of drags
+                    if (onCanvasTap != null && isEraser) {
+                        detectTapGestures { offset ->
+                            onCanvasTap.invoke(offset)
                         }
-                    )
+                    } else {
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                if (!isEraser) {
+                                    currentPoints.clear()
+                                    currentPoints.add(
+                                        floatArrayOf(
+                                            offset.x, offset.y,
+                                            System.currentTimeMillis().toFloat(),
+                                            0.5f, 0f, 0f
+                                        )
+                                    )
+                                }
+                            },
+                            onDrag = { change, _ ->
+                                change.consume()
+                                if (isEraser) {
+                                    onErase(change.position)
+                                } else {
+                                    currentPoints.add(
+                                        floatArrayOf(
+                                            change.position.x, change.position.y,
+                                            System.currentTimeMillis().toFloat(),
+                                            0.5f + (change.position.y / size.height).coerceIn(-0.5f, 0.5f),
+                                            0f, 0f
+                                        )
+                                    )
+                                }
+                            },
+                            onDragEnd = {
+                                if (!isEraser && currentPoints.isNotEmpty()) {
+                                    val stroke = InkStroke(
+                                        brush = currentBrush,
+                                        points = currentPoints.toList()
+                                    )
+                                    onStrokeFinished(stroke)
+                                    currentPoints.clear()
+                                }
+                            }
+                        )
+                    }
                 }
+                // Separate tap detection for text/image placement when not erasing
+                .then(
+                    if (onCanvasTap != null && !isEraser) {
+                        Modifier.pointerInput(Unit) {
+                            detectTapGestures(
+                                onTap = { offset -> onCanvasTap.invoke(offset) }
+                            )
+                        }
+                    } else Modifier
+                )
         ) {
             // Draw page template
             drawPageTemplate(pageTemplate, size.width, size.height)
